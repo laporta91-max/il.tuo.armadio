@@ -1,0 +1,9 @@
+core.js
+colors.js
+figure.js
+samples.js
+wardrobe.js
+add.js
+outfit.js
+profile.js
+main.js

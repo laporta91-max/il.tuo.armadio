@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#ffffff">
+<title>Il tuo armadio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<style>
+/*__CSS__*/
+</style>
+</head>
+<body>
+<div id="app">
+  <main id="screens">
+    <!-- ARMADIO -->
+    <section class="screen active" id="scr-armadio" data-tab="armadio">
+      <header class="top">
+        <h1>Il tuo armadio</h1>
+        <div class="top-actions">
+          <button class="icon-btn" id="btn-search-wardrobe" aria-label="Cerca"><svg><use href="#i-search"/></svg></button>
+        </div>
+      </header>
+      <div class="search-bar hidden" id="wardrobe-search">
+        <svg><use href="#i-search"/></svg>
+        <input id="wardrobe-q" type="search" placeholder="Cerca per nome o colore" autocomplete="off">
+        <button class="icon-btn sm" id="wardrobe-q-clear" aria-label="Chiudi ricerca"><svg><use href="#i-x"/></svg></button>
+      </div>
+      <nav class="cat-tabs" id="cat-tabs"><span class="cat-ind" id="cat-ind"></span></nav>
+      <div class="grid" id="wardrobe-grid"></div>
+      <div class="empty hidden" id="wardrobe-empty">
+        <p>Nessun capo qui.</p>
+        <button class="btn primary" data-action="add-item">Aggiungi un capo</button>
+      </div>
+      <button class="fab" id="fab-add" data-action="add-item" aria-label="Aggiungi capo"><svg><use href="#i-plus"/></svg></button>
+    </section>
+
+    <!-- OUTFIT -->
+    <section class="screen" id="scr-outfit" data-tab="outfit">
+      <header class="top">
+        <h1>Crea il tuo outfit</h1>
+        <div class="top-actions">
+          <button class="icon-btn" id="btn-outfit-search" aria-label="Cerca capo"><svg><use href="#i-search"/></svg></button>
+          <button class="icon-btn" id="btn-outfit-fav" aria-label="Salva nei preferiti"><svg><use href="#i-heart"/></svg></button>
+        </div>
+      </header>
+      <div class="layer-tabs" id="layer-tabs"></div>
+      <div class="stage" id="outfit-stage">
+        <div class="side side-l" id="side-prev"></div>
+        <div class="figure-wrap" id="figure-wrap">
+          <canvas id="outfit-canvas" width="600" height="1100"></canvas>
+          <div class="hold-ring" id="hold-ring"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44"/></svg></div>
+        </div>
+        <div class="side side-r" id="side-next"></div>
+        <div class="match-badge" id="outfit-score"></div>
+      </div>
+      <p class="hint" id="outfit-hint">Scorri per cambiare · tieni premuto per aggiungere uno strato</p>
+      <div class="chips" id="slot-chips"></div>
+      <div class="thumbs" id="slot-thumbs"></div>
+      <div class="row gap pad">
+        <button class="btn ghost flex1" id="btn-wear-today">Indossato oggi</button>
+        <button class="btn ghost flex1" id="btn-outfit-random">Sorprendimi</button>
+      </div>
+      <section class="block">
+        <h2>Da comprare per questo look</h2>
+        <div class="shop-list" id="shop-list"></div>
+      </section>
+    </section>
+
+    <!-- ABBINA -->
+    <section class="screen" id="scr-abbina" data-tab="abbina">
+      <header class="top"><h1>Abbina</h1></header>
+      <p class="sub pad">Proposte create solo con i capi che possiedi (esclusi quelli nel bucato).</p>
+      <div class="pad">
+        <button class="pick-start" id="abbina-start">
+          <span class="ps-img" id="abbina-start-img"></span>
+          <span class="ps-txt" id="abbina-start-txt">Parti da un capo (facoltativo)</span>
+          <svg><use href="#i-chevron"/></svg>
+        </button>
+      </div>
+      <div class="chips pad" id="abbina-styles"></div>
+      <div class="suggest-list" id="abbina-list"></div>
+    </section>
+
+    <!-- PROFILO -->
+    <section class="screen" id="scr-profilo" data-tab="profilo">
+      <header class="top"><h1 id="profile-hello">Ciao!</h1></header>
+      <p class="sub pad" id="profile-counts"></p>
+      <div class="row gap pad">
+        <button class="btn primary flex1" data-action="add-item">Aggiungi capo</button>
+        <button class="btn ghost flex1" data-action="goto-outfit">Crea Outfit</button>
+      </div>
+
+      <section class="block">
+        <h2>Avatar</h2>
+        <div class="seg" id="avatar-seg">
+          <button data-av="photo">La tua foto</button>
+          <button data-av="mannequin">Manichino</button>
+          <span class="seg-ind"></span>
+        </div>
+        <div class="avatar-card" id="avatar-card"></div>
+      </section>
+
+      <section class="block">
+        <h2>Personalizza le misure</h2>
+        <div class="measure">
+          <canvas id="measure-canvas" width="300" height="560"></canvas>
+          <div class="sliders" id="measure-sliders"></div>
+        </div>
+        <div class="pad"><button class="btn primary full" id="btn-save-measures">Salva misure</button></div>
+      </section>
+
+      <section class="block">
+        <h2>I tuoi outfit preferiti</h2>
+        <div id="fav-groups"></div>
+      </section>
+
+      <section class="block">
+        <h2>Il mio stile</h2>
+        <div class="tiles" id="style-tiles"></div>
+      </section>
+
+      <section class="block">
+        <h2>Impostazioni</h2>
+        <div class="list" id="settings-list"></div>
+      </section>
+      <p class="tiny center" id="app-version"></p>
+    </section>
+  </main>
+
+  <nav class="tabbar" id="tabbar">
+    <button data-tab="armadio" class="active"><span class="pill"></span><svg><use href="#i-hanger"/></svg><b>Armadio</b></button>
+    <button data-tab="outfit"><span class="pill"></span><svg><use href="#i-body"/></svg><b>Outfit</b></button>
+    <button data-tab="abbina"><span class="pill"></span><svg><use href="#i-spark"/></svg><b>Abbina</b></button>
+    <button data-tab="profilo"><span class="pill"></span><svg><use href="#i-user"/></svg><b>Profilo</b></button>
+  </nav>
+
+  <div id="sheets"></div>
+  <div id="overlays"></div>
+  <div id="toasts"></div>
+  <input type="file" id="file-gallery" accept="image/*" multiple hidden>
+  <input type="file" id="file-json" accept="application/json,.json" hidden>
+</div>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+    <symbol id="i-heart-f" viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" fill="currentColor"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-hanger" viewBox="0 0 24 24"><path d="M12 7.5a2 2 0 1 1 2-2M12 7.5v1.5L3 15.5h18L12 9" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-body" viewBox="0 0 24 24"><circle cx="12" cy="4.5" r="2.2" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M8 9h8l-1 6h-1.5l-.5 6.5h-2l-.5-6.5H9z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z M18.5 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.5" fill="none" stroke="currentColor" stroke-width="1.9"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.9"/><circle cx="9" cy="10" r="1.6" fill="currentColor"/><path d="M4 17l5-4.5 4 3.5 3-2.5 4 3.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/></symbol>
+    <symbol id="i-google" viewBox="0 0 24 24"><path d="M20.6 12.2c0-.6-.1-1.2-.2-1.7H12v3.3h4.8a4.1 4.1 0 0 1-1.8 2.7v2.2h2.9c1.7-1.6 2.7-3.9 2.7-6.5z" fill="#4285F4"/><path d="M12 21c2.4 0 4.5-.8 5.9-2.2L15 16.5c-.8.5-1.8.9-3 .9-2.3 0-4.3-1.6-5-3.7H4v2.3A9 9 0 0 0 12 21z" fill="#34A853"/><path d="M7 13.7a5.4 5.4 0 0 1 0-3.4V8H4a9 9 0 0 0 0 8z" fill="#FBBC05"/><path d="M12 6.6c1.3 0 2.5.5 3.4 1.3l2.6-2.6A9 9 0 0 0 4 8l3 2.3c.7-2.1 2.7-3.7 5-3.7z" fill="#EA4335"/></symbol>
+    <symbol id="i-flip" viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3M18 3v4h-4M6 21v-4h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M5 7h14M10 7V5h4v2M7 7l1 13h8l1-13" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  </defs>
+</svg>
+
+<script>
+/*__JS__*/
+</script>
+</body>
+</html>
