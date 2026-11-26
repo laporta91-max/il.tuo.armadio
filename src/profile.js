@@ -36,7 +36,7 @@ function changeAvatarPhoto() {
     title: 'La tua foto', body: b => {
       b.append(h('p', { class: 'sub' }, 'Posa standard: in piedi, di fronte, braccia lungo i fianchi leggermente staccate, piedi alla larghezza delle anche.'),
         h('div', { class: 'src-btns' },
-          h('button', { class: 'src-btn', onclick: () => { sh.close(); openCamera({ facing: 'user', guide: 'none', onShot: makeAvatar }); } }, h('span', { class: 'ic' }, icon('i-camera')), h('span', {}, 'Scatta una foto', h('small', {}, 'Fotocamera frontale'))),
+          h('button', { class: 'src-btn', onclick: () => { sh.close(); openCamera({ facing: 'environment', guide: 'body', onShot: makeAvatar }); } }, h('span', { class: 'ic' }, icon('i-camera')), h('span', {}, 'Scatta con la sagoma', h('small', {}, 'Autoscatto 10 s o telecomando Bluetooth'))),
           h('button', { class: 'src-btn', onclick: () => { sh.close(); const inp = $('#file-gallery'); inp.value = ''; inp.onchange = () => inp.files[0] && makeAvatar(inp.files[0]); inp.click(); } }, h('span', { class: 'ic' }, icon('i-image')), h('span', {}, 'Scegli dalla galleria', h('small', {}, 'Una foto a figura intera'))))) ;
     }
   });
