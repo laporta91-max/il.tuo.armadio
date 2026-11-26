@@ -68,10 +68,10 @@ const DB = {
   db: null,
   open() {
     return new Promise((res, rej) => {
-      const rq = indexedDB.open('armadio', 1);
+      const rq = indexedDB.open('armadio', 2);
       rq.onupgradeneeded = () => {
         const d = rq.result;
-        for (const s of ['items', 'outfits', 'calendar', 'kv']) if (!d.objectStoreNames.contains(s)) d.createObjectStore(s, { keyPath: 'id' });
+        for (const s of ['items', 'outfits', 'calendar', 'kv', 'tryon']) if (!d.objectStoreNames.contains(s)) d.createObjectStore(s, { keyPath: 'id' });
       };
       rq.onsuccess = () => { this.db = rq.result; res(); };
       rq.onerror = () => rej(rq.error);
