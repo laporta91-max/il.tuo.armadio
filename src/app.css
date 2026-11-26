@@ -133,7 +133,7 @@ h3{font-size:16px;font-weight:700;margin:0 0 6px}
 .cam .shutter:active{background:#fff}
 .cam .rb{width:50px;height:50px;border-radius:50%;background:rgba(255,255,255,.18);color:#fff;display:grid;place-items:center}
 .cam .closeb{position:absolute;top:calc(var(--safe-t) + 14px);left:14px}
-.cam .cam-msg{position:absolute;top:calc(var(--safe-t) + 22px);left:0;right:0;text-align:center;color:#fff;font-weight:600;text-shadow:0 1px 4px rgba(0,0,0,.6)}
+.cam .cam-msg{position:absolute;top:calc(var(--safe-t) + 22px);left:64px;right:64px;text-align:center;color:#fff;font-weight:600;text-shadow:0 1px 4px rgba(0,0,0,.6)}
 .flash{position:absolute;inset:0;background:#fff;animation:flash .45s forwards;pointer-events:none}
 @keyframes flash{from{opacity:1}to{opacity:0}}
 
@@ -333,3 +333,18 @@ h3{font-size:16px;font-weight:700;margin:0 0 6px}
 .view-seg button{height:30px;padding:0 12px;border-radius:11px;font-size:13px;font-weight:700;color:var(--ink2)}
 .view-seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 4px rgba(0,0,0,.1)}
 .side{cursor:pointer}
+
+/* Fotocamera: autoscatto e sagoma */
+.cam .bar{flex-direction:column;align-items:stretch;gap:14px;background:linear-gradient(transparent,rgba(0,0,0,.55))}
+.cam .bar-row{display:flex;align-items:center;justify-content:space-between}
+.cam .bar-top{display:flex;flex-direction:column;align-items:center;gap:8px}
+.cam-timer{display:flex;gap:6px;background:rgba(0,0,0,.45);border-radius:18px;padding:4px}
+.cam-timer button{color:#fff;font-weight:700;font-size:13px;height:32px;padding:0 12px;border-radius:14px}
+.cam-timer button.on{background:#fff;color:#000}
+.cam-hint{color:rgba(255,255,255,.85);font-size:12px;text-align:center}
+.cam-count{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);font-size:120px;font-weight:800;color:#fff;text-shadow:0 4px 24px rgba(0,0,0,.6);pointer-events:none}
+.cam-count.pop{animation:cpop .9s ease-out}
+@keyframes cpop{from{transform:translate(-50%,-50%) scale(1.5);opacity:.4}to{transform:translate(-50%,-50%) scale(1);opacity:1}}
+.cam .shutter.counting{border-color:var(--blue);background:rgba(31,99,240,.45)}
+.body-guide{position:absolute;left:8%;right:8%;top:9%;bottom:24%;pointer-events:none}
+.body-guide svg{width:100%;height:100%}
