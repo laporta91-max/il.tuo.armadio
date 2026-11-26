@@ -21,7 +21,7 @@ function renderAvatarCard() {
     card.append(cv, h('div', { class: 'acts' },
       mode === 'photo' ? h('span', { class: 'in-use' }, '✓ In uso') : (p.avatarPhoto ? h('button', { class: 'btn primary sm', onclick: () => setAvatarMode('photo') }, 'Usa la tua foto') : null),
       h('button', { class: 'btn ghost sm', onclick: changeAvatarPhoto }, p.avatarPhoto ? 'Cambia foto' : 'Aggiungi la tua foto'),
-      p.avatarPhoto ? h('button', { class: 'btn ghost sm', onclick: openKeypointEditor }, 'Correggi i punti') : h('p', { class: 'tiny' }, 'Foto in piedi, di fronte, braccia lungo i fianchi.')));
+      p.avatarPhoto ? h('button', { class: 'btn ghost sm', onclick: openKeypointEditor }, 'Correggi i punti') : h('p', { class: 'tiny' }, 'In piedi, di fronte, braccia lungo i fianchi, abiti aderenti (canotta e pantaloncini) su sfondo chiaro.')));
   } else {
     const x = cv.getContext('2d'); x.scale(192 / FIG_W * 1.0, 300 / FIG_H); x.translate(FIG_W * 0.0, 0);
     drawMannequin(x, bodyModel());
@@ -373,6 +373,7 @@ function renderSettings() {
   L.append(
     h('button', { class: 'li', onclick: () => editText('Il tuo nome', S.profile.name, v => { S.profile.name = v; }) }, h('span', { class: 'tx' }, 'Nome', h('small', {}, S.profile.name || 'Non impostato')), icon('i-chevron')),
     h('button', { class: 'li', onclick: () => editText('La tua città (per il meteo)', S.profile.city, v => { S.profile.city = v || 'Milano'; }) }, h('span', { class: 'tx' }, 'Città', h('small', {}, S.profile.city)), icon('i-chevron')),
+    h('button', { class: 'li', onclick: openAiSettings }, h('span', { class: 'tx' }, 'Prova realistica AI', h('small', {}, aiCfg().enabled ? `Attiva · ${TRYON_PROVIDERS[aiCfg().top].name}${aiCfg().token ? ' · con token' : ''}` : 'Spenta: solo manichino 3D')), icon('i-chevron')),
     h('button', { class: 'li', onclick: async () => { S.profile.hideSamples = !S.profile.hideSamples; await saveProfile(); renderAll(); toast(S.profile.hideSamples ? 'Capi di esempio nascosti' : 'Capi di esempio visibili'); } }, h('span', { class: 'tx' }, 'Nascondi capi di esempio', h('small', {}, 'Restano disponibili se li riattivi')), sw));
 }
 function editText(title, val, set) {
