@@ -33,7 +33,8 @@ jobs:
             echo "::error::Mancano i secret KEYSTORE_BASE64 e KEYSTORE_PASSWORD (vedi LEGGIMI.md). Senza la stessa chiave l'APK non si aggiorna sopra la versione precedente."
             exit 1
           fi
-          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/armadio.jks"
+          printf '%s' "$KEYSTORE_BASE64" | tr -d ' \r\n\t"' | base64 -d > "$RUNNER_TEMP/armadio.jks" || { echo "::error::KEYSTORE_BASE64 non valido: incolla di nuovo il valore dal file chiave-firma-SEGRETA.txt (solo la lunga riga di lettere, senza il titolo)."; exit 1; }
+          keytool -list -keystore "$RUNNER_TEMP/armadio.jks" -storepass "$KEYSTORE_PASSWORD" >/dev/null || { echo "::error::KEYSTORE_PASSWORD non corrisponde alla chiave: ricopialo dal file chiave-firma-SEGRETA.txt."; exit 1; }
           echo "KEYSTORE_FILE=$RUNNER_TEMP/armadio.jks" >> "$GITHUB_ENV"
 
       - name: Dipendenze
