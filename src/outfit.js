@@ -60,7 +60,7 @@ function renderOutfit(dir) {
   // figura
   const fw = $('#figure-wrap');
   if (dir) { fw.classList.remove('slide-l', 'slide-r'); void fw.offsetWidth; fw.classList.add(dir === 'l' ? 'slide-l' : 'slide-r'); }
-  drawFigure($('#outfit-canvas'), O);
+  renderStage();
   // punteggio
   const sc = outfitScore(outfitItems());
   $('#outfit-score').innerHTML = `<b>${sc.pct}%</b> · ${scoreLabel(sc.pct)}`;
@@ -69,6 +69,33 @@ function renderOutfit(dir) {
   const key = outfitKey(O); const isFav = S.outfits.some(f => outfitKey(f.outfit) === key);
   const fb = $('#btn-outfit-fav'); fb.classList.toggle('on', isFav); fb.innerHTML = ''; fb.append(icon(isFav ? 'i-heart-f' : 'i-heart'));
   renderShopList();
+}
+/* Vista: foto realistica AI oppure 3D girevole */
+function viewMode() { return S.view || (aiAvailable() ? 'ai' : '3d'); }
+let stageTicket = 0;
+async function renderStage() {
+  const my = ++stageTicket; const mode = viewMode();
+  $$('#view-seg button').forEach(b => b.classList.toggle('on', b.dataset.v === mode));
+  const c3 = $('#outfit-3d'), ai = $('#outfit-ai'), ov = $('#ai-ov');
+  $('#outfit-hint').textContent = mode === '3d' ? 'Trascina per ruotare · tocca i capi ai lati per cambiare · tieni premuto per uno strato' : 'Scorri per cambiare · tieni premuto per aggiungere uno strato';
+  const show3d = async () => { ai.classList.add('hidden'); ov.classList.add('hidden'); c3.classList.remove('hidden'); if (!(await show3D(c3, O))) { c3.classList.add('hidden'); $('#outfit-canvas').classList.remove('hidden'); drawFigure2D($('#outfit-canvas'), O); } };
+  if (mode === '3d') return show3d();
+  if (!S.profile.avatarPhoto) { toast('Per la foto realistica aggiungi prima la tua foto nel Profilo'); S.view = '3d'; return renderStage(); }
+  if (!(await ensureAiConsent())) { S.view = '3d'; return renderStage(); }
+  if (my !== stageTicket) return;
+  c3.classList.add('hidden'); $('#outfit-canvas').classList.add('hidden'); ai.classList.remove('hidden');
+  const hit = await cachedTryon(O);
+  if (my !== stageTicket) return;
+  if (hit) { ai.src = hit; ov.classList.add('hidden'); return; }
+  ai.src = S.profile.avatarPhoto; ov.classList.remove('hidden'); $('#ai-lbl').textContent = 'Preparo la foto realistica…';
+  try {
+    const img = await generateTryon({ tops: [...O.tops], bottom: O.bottom }, t => { if (my === stageTicket) $('#ai-lbl').textContent = t; });
+    if (my !== stageTicket) return;
+    ai.src = img; ov.classList.add('hidden');
+  } catch (e) {
+    console.warn(e); if (my !== stageTicket) return;
+    ov.classList.add('hidden'); toast(niceAiError(e), { ms: 5000, action: '3D', onAction: () => { S.view = '3d'; renderStage(); } });
+  }
 }
 const outfitKey = o => [...(o.tops || []), '|', o.bottom, o.shoes, o.acc].join(',');
 
@@ -114,20 +141,25 @@ function tryOn(id) {
 function initOutfitGestures() {
   const st = $('#outfit-stage'); const ring = $('#hold-ring');
   let x0, y0, t, moved, pid = null;
+  $$('#view-seg button').forEach(b => b.onclick = e => { e.stopPropagation(); S.view = b.dataset.v; if (S.view === 'ai' && !aiCfg().enabled) { S.profile.ai = Object.assign(aiCfg(), { enabled: true }); saveProfile(); } renderStage(); });
   st.addEventListener('pointerdown', e => {
-    if (e.target.closest('.match-badge')) return;
+    if (e.target.closest('.match-badge,.view-seg')) return;
     pid = e.pointerId; x0 = e.clientX; y0 = e.clientY; moved = false;
     ring.classList.add('on');
     t = setTimeout(() => { ring.classList.remove('on'); pid = null; addLayer(); }, 700);
   });
+  let lx = 0;
   st.addEventListener('pointermove', e => {
     if (pid !== e.pointerId) return;
-    if (Math.abs(e.clientX - x0) > 10 || Math.abs(e.clientY - y0) > 10) { moved = true; clearTimeout(t); ring.classList.remove('on'); }
+    if (Math.abs(e.clientX - x0) > 10 || Math.abs(e.clientY - y0) > 10) { if (!moved) lx = e.clientX; moved = true; clearTimeout(t); ring.classList.remove('on'); }
+    if (moved && viewMode() === '3d') { const d = e.clientX - lx; lx = e.clientX; V3.drag = true; V3.rotY += d * 0.012; V3.vel = d * 0.012; }
   });
   const end = e => {
     if (pid !== e.pointerId) return; pid = null; clearTimeout(t); ring.classList.remove('on');
     const dx = e.clientX - x0;
+    if (viewMode() === '3d') { V3.drag = false; if (!moved) { const r = st.getBoundingClientRect(), fx = (e.clientX - r.left) / r.width; if (fx < 0.18) stepSlot(-1); else if (fx > 0.82) stepSlot(1); } return; }
     if (moved && Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(e.clientY - y0)) stepSlot(dx < 0 ? 1 : -1);
+    else if (!moved) { const r = st.getBoundingClientRect(), fx = (e.clientX - r.left) / r.width; if (fx < 0.18) stepSlot(-1); else if (fx > 0.82) stepSlot(1); }
   };
   st.addEventListener('pointerup', end); st.addEventListener('pointercancel', end);
   st.addEventListener('contextmenu', e => e.preventDefault());
@@ -135,6 +167,7 @@ function initOutfitGestures() {
 
 /* Preferiti */
 async function figureThumb(o, w = 300) {
+  const ai = await cachedTryon(o).catch(() => null); if (ai) return ai;
   const c = document.createElement('canvas'); c.width = w; c.height = Math.round(w * FIG_H / FIG_W);
   await drawFigure(c, o); return c.toDataURL('image/webp', 0.85);
 }
