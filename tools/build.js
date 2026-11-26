@@ -9,7 +9,9 @@ const css = fs.readFileSync(path.join(src, 'app.css'), 'utf8');
 const order = fs.readFileSync(path.join(src, 'order.txt'), 'utf8').split(/\s+/).filter(Boolean);
 const js = order.map(f => `// ---- ${f}\n` + fs.readFileSync(path.join(src, f), 'utf8')).join('\n');
 
-html = html.replace('/*__CSS__*/', () => css).replace('/*__JS__*/', () => js);
+const capCore = path.join(__dirname, '..', 'node_modules', '@capacitor', 'core', 'dist', 'capacitor.js');
+const cap = fs.existsSync(capCore) ? fs.readFileSync(capCore, 'utf8').replace(/\/\/# sourceMappingURL=.*$/m, '') : '';
+html = html.replace('/*__CSS__*/', () => css).replace('/*__JS__*/', () => cap + '\n' + js);
 fs.mkdirSync(path.dirname(out), { recursive: true });
 fs.writeFileSync(out, html);
 // librerie locali (funzionano anche offline)
