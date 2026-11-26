@@ -148,7 +148,11 @@ function currentBody() {
 }
 
 // Disegna la figura vestita: outfit = {tops:[id..], bottom, shoes, acc}
-async function drawFigure(canvas, outfit, { shadow = true } = {}) {
+async function drawFigure(canvas, outfit, opts = {}) {
+  if (!opts.flat && await snapshot3D(canvas, outfit)) return;
+  return drawFigure2D(canvas, outfit, opts);
+}
+async function drawFigure2D(canvas, outfit, { shadow = true } = {}) {
   const x = canvas.getContext('2d');
   const sx = canvas.width / FIG_W, sy = canvas.height / FIG_H;
   const B = currentBody();
