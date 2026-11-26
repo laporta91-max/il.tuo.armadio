@@ -150,9 +150,11 @@ async function trimImage(blob, max = 800) {
   const d = x.getImageData(0, 0, c.width, c.height).data; let x0 = c.width, y0 = c.height, x1 = 0, y1 = 0;
   for (let y = 0; y < c.height; y += 2) for (let xx = 0; xx < c.width; xx += 2) if (d[(y * c.width + xx) * 4 + 3] > 24) { if (xx < x0) x0 = xx; if (xx > x1) x1 = xx; if (y < y0) y0 = y; if (y > y1) y1 = y; }
   if (x1 <= x0) { x0 = 0; y0 = 0; x1 = c.width; y1 = c.height; }
+  x1 = Math.min(c.width, x1 + 2); y1 = Math.min(c.height, y1 + 2); // includi l'ultima riga/colonna
   const w = x1 - x0, hh = y1 - y0, s = Math.min(1, max / Math.max(w, hh));
-  const o = document.createElement('canvas'); o.width = Math.round(w * s); o.height = Math.round(hh * s);
-  o.getContext('2d').drawImage(c, x0, y0, w, hh, 0, 0, o.width, o.height);
+  const pad = Math.round(Math.max(w, hh) * s * 0.03); // piccolo margine: il capo non tocca i bordi
+  const o = document.createElement('canvas'); o.width = Math.round(w * s) + pad * 2; o.height = Math.round(hh * s) + pad * 2;
+  o.getContext('2d').drawImage(c, x0, y0, w, hh, pad, pad, Math.round(w * s), Math.round(hh * s));
   return o;
 }
 
@@ -172,6 +174,7 @@ function processOne(blob, counter) {
         const pimg = h('img', { src: raw }); const lbl = h('span', { class: 'lbl' }, 'Rimuovo lo sfondo…');
         const proc = h('div', { class: 'proc' }, pimg, h('div', { class: 'scan' }), lbl);
         b.append(proc);
+        const orig = await shrinkToDataURL(blob, 1400);
         const { blob: cut, ai } = await removeBackground(blob);
         if (sh.closed) return;
         const canvas = await trimImage(cut);
@@ -179,7 +182,7 @@ function processOne(blob, counter) {
         const color = dominantColor(canvas);
         finished = true; sh.close();
         if (!ai) toast('Sfondo rimosso in modalità semplice (AI non disponibile)');
-        openItemForm({ img: dataUrl, color, counter, onDone: resolve });
+        openItemForm({ img: dataUrl, orig, color, counter, onDone: resolve });
       }
     });
   });
@@ -193,9 +196,9 @@ function guessCat(name) {
   for (const [re, c] of map) if (re.test(t)) return c;
   return null;
 }
-function openItemForm({ item, img, color, counter, onDone }) {
+function openItemForm({ item, img, orig, color, counter, onDone }) {
   const editing = !!item;
-  const it = item ? { ...item } : { id: uid(), name: '', cat: 'Maglie', type: '', color: color || '#888888', styles: [], price: null, img, laundry: false, created: Date.now() };
+  const it = item ? { ...item } : { id: uid(), name: '', cat: 'Maglie', type: '', color: color || '#888888', styles: [], price: null, img, orig: orig || null, laundry: false, created: Date.now() };
   let done = false;
   const sh = openSheet({
     title: editing ? 'Modifica capo' : (counter || 'Nuovo capo'), full: true, onClose: () => { if (!done && onDone) onDone('stop'); }, body: b => {
@@ -225,14 +228,95 @@ function openItemForm({ item, img, color, counter, onDone }) {
         toast(editing ? 'Modifiche salvate' : 'Aggiunto all\'armadio');
         onDone && onDone('ok');
       } }, editing ? 'Salva modifiche' : 'Aggiungi all\'armadio');
+      const prevImg = h('img', { src: it.img });
+      const adjust = h('button', { class: 'btn ghost full', style: { marginTop: '10px' }, onclick: () => openPhotoEditor(it, r => {
+        it.img = r.img; prevImg.src = r.img; if (r.orig) it.orig = r.orig;
+        if (r.color) { colIn.value = r.color; colName.value = nameColor(r.color); }
+        if (editing) delete it.fit;
+      }) }, '✂️ Regola foto');
       b.append(
-        h('div', { class: 'proc', style: { aspectRatio: '1.4/1' } }, h('img', { src: it.img })),
+        h('div', { class: 'proc', style: { aspectRatio: '1.4/1' } }, prevImg), adjust,
         h('div', { class: 'field' }, h('label', {}, 'Nome del capo'), name),
         h('div', { class: 'row gap' }, h('div', { class: 'field flex1' }, h('label', {}, 'Categoria'), cat), h('div', { class: 'field flex1' }, h('label', {}, 'Tipo'), type)),
         h('div', { class: 'field' }, h('label', {}, 'Colore (rilevato dalla foto)'), h('div', { class: 'color-row' }, colIn, colName)),
         h('div', { class: 'field' }, h('label', {}, 'Stili'), styleBox),
         h('div', { class: 'field' }, h('label', {}, 'Prezzo (€)'), price),
         h('div', { class: 'sticky-bottom' }, save));
+    }
+  });
+}
+
+/* ----- Regola foto: ritaglio, rotazione, sfondo ----- */
+async function shrinkToDataURL(blob, max = 1400) {
+  const img = await loadImg(URL.createObjectURL(blob));
+  const sc = Math.min(1, max / Math.max(img.width, img.height));
+  const c = document.createElement('canvas'); c.width = Math.round(img.width * sc); c.height = Math.round(img.height * sc);
+  const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(img, 0, 0, c.width, c.height);
+  return c.toDataURL('image/jpeg', 0.88);
+}
+function openPhotoEditor(it, onApply) {
+  const hasOrig = !!it.orig;
+  let src = it.orig || it.img, rot = 0, removeBg = hasOrig, busy = false;
+  let box = { x: 0.04, y: 0.04, w: 0.92, h: 0.92 };
+  const sh = openSheet({
+    title: 'Regola foto', full: true, body: async b => {
+      const wrap = h('div', { class: 'crop-wrap' }); const im = h('img');
+      const cb = h('div', { class: 'crop-box' }); wrap.append(im, cb);
+      const handles = ['nw', 'ne', 'sw', 'se', 'n', 's', 'w', 'e'].map(k => { const d = h('div', { class: 'crop-h', 'data-k': k }); wrap.append(d); return d; });
+      let base = null; // canvas ruotato
+      const layout = async () => {
+        const img = await loadImg(src);
+        const sw = rot % 180 ? img.height : img.width, shh = rot % 180 ? img.width : img.height;
+        base = document.createElement('canvas'); base.width = sw; base.height = shh;
+        const x = base.getContext('2d'); x.translate(sw / 2, shh / 2); x.rotate(rot * Math.PI / 180); x.drawImage(img, -img.width / 2, -img.height / 2);
+        im.src = base.toDataURL('image/jpeg', 0.9);
+        const maxW = b.clientWidth, maxH = window.innerHeight * 0.5; const s = Math.min(maxW / sw, maxH / shh);
+        wrap.style.width = sw * s + 'px'; wrap.style.height = shh * s + 'px';
+        draw();
+      };
+      const draw = () => {
+        Object.assign(cb.style, { left: box.x * 100 + '%', top: box.y * 100 + '%', width: box.w * 100 + '%', height: box.h * 100 + '%' });
+        const P = { nw: [box.x, box.y], ne: [box.x + box.w, box.y], sw: [box.x, box.y + box.h], se: [box.x + box.w, box.y + box.h], n: [box.x + box.w / 2, box.y], s: [box.x + box.w / 2, box.y + box.h], w: [box.x, box.y + box.h / 2], e: [box.x + box.w, box.y + box.h / 2] };
+        handles.forEach(d => { const p = P[d.dataset.k]; d.style.left = p[0] * 100 + '%'; d.style.top = p[1] * 100 + '%'; });
+      };
+      const drag = (el, fn) => el.addEventListener('pointerdown', e => {
+        e.preventDefault(); e.stopPropagation(); el.setPointerCapture(e.pointerId);
+        const r = wrap.getBoundingClientRect(), x0 = e.clientX, y0 = e.clientY, b0 = { ...box };
+        const mv = ev => { fn((ev.clientX - x0) / r.width, (ev.clientY - y0) / r.height, b0); draw(); };
+        const up = () => { el.removeEventListener('pointermove', mv); el.removeEventListener('pointerup', up); };
+        el.addEventListener('pointermove', mv); el.addEventListener('pointerup', up);
+      });
+      const MIN = 0.08;
+      drag(cb, (dx, dy, b0) => { box.x = clamp(b0.x + dx, 0, 1 - b0.w); box.y = clamp(b0.y + dy, 0, 1 - b0.h); });
+      handles.forEach(d => drag(d, (dx, dy, b0) => {
+        const k = d.dataset.k; let { x, y, w, h: hh } = b0;
+        if (k.includes('w')) { const nx = clamp(x + dx, 0, x + w - MIN); w += x - nx; x = nx; }
+        if (k.includes('e')) w = clamp(w + dx, MIN, 1 - x);
+        if (k.includes('n')) { const ny = clamp(y + dy, 0, y + hh - MIN); hh += y - ny; y = ny; }
+        if (k.includes('s')) hh = clamp(hh + dy, MIN, 1 - y);
+        box = { x, y, w, h: hh };
+      }));
+      const bgSw = h('span', { class: 'switch' + (removeBg ? ' on' : '') });
+      const apply = h('button', { class: 'btn primary full', style: { marginTop: '14px' }, onclick: async () => {
+        if (busy) return; busy = true; apply.textContent = removeBg ? 'Rimuovo lo sfondo…' : 'Applico…';
+        const c = document.createElement('canvas');
+        const sx = Math.round(box.x * base.width), sy = Math.round(box.y * base.height), sw = Math.max(1, Math.round(box.w * base.width)), shh = Math.max(1, Math.round(box.h * base.height));
+        c.width = sw; c.height = shh; c.getContext('2d').drawImage(base, sx, sy, sw, shh, 0, 0, sw, shh);
+        let blob = await new Promise(r => c.toBlob(r, 'image/png'));
+        if (removeBg && hasOrig) blob = (await removeBackground(blob)).blob;
+        const out = await trimImage(blob);
+        const img = out.toDataURL('image/png');
+        sh.close(); onApply({ img, color: dominantColor(out) }); toast('Foto aggiornata');
+      } }, 'Applica');
+      b.append(h('p', { class: 'sub' }, 'Trascina il riquadro e i punti blu per scegliere cosa tenere.'), wrap,
+        h('div', { class: 'img-tools' },
+          h('button', { class: 'btn ghost sm flex1', onclick: () => { rot = (rot + 90) % 360; box = { x: 0.04, y: 0.04, w: 0.92, h: 0.92 }; layout(); } }, '↻ Ruota'),
+          h('button', { class: 'btn ghost sm flex1', onclick: () => { box = { x: 0, y: 0, w: 1, h: 1 }; draw(); } }, 'Tutta la foto')),
+        hasOrig ? h('button', { class: 'li', style: { border: '1px solid var(--line)', borderRadius: '14px', marginTop: '10px' }, onclick: () => { removeBg = !removeBg; bgSw.classList.toggle('on', removeBg); } },
+          h('span', { class: 'tx' }, 'Rimuovi lo sfondo', h('small', {}, 'Disattiva se taglia parti del capo')), bgSw) :
+          h('p', { class: 'tiny', style: { marginTop: '10px' } }, 'Per questo capo non c\'è la foto originale: puoi ritagliare e ruotare quella attuale.'),
+        apply);
+      requestAnimationFrame(layout);
     }
   });
 }
