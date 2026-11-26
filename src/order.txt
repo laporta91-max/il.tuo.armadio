@@ -1,6 +1,8 @@
 core.js
 colors.js
 figure.js
+three3d.js
+tryon.js
 samples.js
 wardrobe.js
 add.js
