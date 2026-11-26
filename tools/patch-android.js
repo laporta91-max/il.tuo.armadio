@@ -48,4 +48,78 @@ if (ks && !gradle.includes('signingConfigs')) {
   gradle = gradle.replace(/buildTypes\s*\{\s*release\s*\{/, m => m + '\n            signingConfig signingConfigs.release');
 }
 fs.writeFileSync(gradlePath, gradle);
+// --- Tasti fisici (volume, telecomandi Bluetooth, tasto fotocamera) inoltrati all'app
+const javaDir = path.join(root, 'app', 'src', 'main', 'java', 'app', 'armadio', 'guardaroba');
+fs.mkdirSync(javaDir, { recursive: true });
+fs.writeFileSync(path.join(javaDir, 'HwKeysPlugin.java'), `package app.armadio.guardaroba;
+
+import com.getcapacitor.JSObject;
+import com.getcapacitor.Plugin;
+import com.getcapacitor.PluginCall;
+import com.getcapacitor.PluginMethod;
+import com.getcapacitor.annotation.CapacitorPlugin;
+
+@CapacitorPlugin(name = "HwKeys")
+public class HwKeysPlugin extends Plugin {
+    static volatile boolean capturing = false;
+
+    @PluginMethod
+    public void capture(PluginCall call) {
+        capturing = Boolean.TRUE.equals(call.getBoolean("on", false));
+        call.resolve();
+    }
+
+    void fire(String key) {
+        JSObject o = new JSObject();
+        o.put("key", key);
+        notifyListeners("key", o);
+    }
+}
+`);
+fs.writeFileSync(path.join(javaDir, 'MainActivity.java'), `package app.armadio.guardaroba;
+
+import android.os.Bundle;
+import android.view.KeyEvent;
+import com.getcapacitor.BridgeActivity;
+import com.getcapacitor.PluginHandle;
+
+public class MainActivity extends BridgeActivity {
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        registerPlugin(HwKeysPlugin.class);
+        super.onCreate(savedInstanceState);
+    }
+
+    private String keyName(int k) {
+        switch (k) {
+            case KeyEvent.KEYCODE_VOLUME_UP: return "VOL_UP";
+            case KeyEvent.KEYCODE_VOLUME_DOWN: return "VOL_DOWN";
+            case KeyEvent.KEYCODE_CAMERA: return "CAMERA";
+            case KeyEvent.KEYCODE_FOCUS: return "FOCUS";
+            case KeyEvent.KEYCODE_ENTER: case KeyEvent.KEYCODE_NUMPAD_ENTER: case KeyEvent.KEYCODE_DPAD_CENTER: return "ENTER";
+            case KeyEvent.KEYCODE_SPACE: return "SPACE";
+            case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE: case KeyEvent.KEYCODE_MEDIA_PLAY: case KeyEvent.KEYCODE_MEDIA_PAUSE:
+            case KeyEvent.KEYCODE_HEADSETHOOK: case KeyEvent.KEYCODE_MEDIA_NEXT: case KeyEvent.KEYCODE_MEDIA_PREVIOUS: return "MEDIA";
+            case KeyEvent.KEYCODE_PAGE_UP: case KeyEvent.KEYCODE_PAGE_DOWN: case KeyEvent.KEYCODE_DPAD_UP: case KeyEvent.KEYCODE_DPAD_DOWN: return "PAGE";
+            default: return null;
+        }
+    }
+
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent e) {
+        if (HwKeysPlugin.capturing) {
+            String name = keyName(e.getKeyCode());
+            if (name != null) {
+                if (e.getAction() == KeyEvent.ACTION_DOWN && e.getRepeatCount() == 0 && bridge != null) {
+                    PluginHandle h = bridge.getPlugin("HwKeys");
+                    if (h != null) ((HwKeysPlugin) h.getInstance()).fire(name);
+                }
+                return true; // niente cambio di volume mentre la fotocamera è aperta
+            }
+        }
+        return super.dispatchKeyEvent(e);
+    }
+}
+`);
+
 console.log('Android aggiornato: versionCode', versionCode, ks ? '(firmato)' : '(senza firma)');
