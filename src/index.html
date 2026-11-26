@@ -49,11 +49,15 @@
       <div class="stage" id="outfit-stage">
         <div class="side side-l" id="side-prev"></div>
         <div class="figure-wrap" id="figure-wrap">
-          <canvas id="outfit-canvas" width="600" height="1100"></canvas>
+          <canvas id="outfit-3d"></canvas>
+          <img id="outfit-ai" class="hidden" alt="">
+          <canvas id="outfit-canvas" class="hidden" width="600" height="1100"></canvas>
+          <div class="ai-ov hidden" id="ai-ov"><div class="scan"></div><span class="lbl" id="ai-lbl"></span></div>
           <div class="hold-ring" id="hold-ring"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44"/></svg></div>
         </div>
         <div class="side side-r" id="side-next"></div>
         <div class="match-badge" id="outfit-score"></div>
+        <div class="view-seg" id="view-seg"><button data-v="ai">Foto AI</button><button data-v="3d">3D</button></div>
       </div>
       <p class="hint" id="outfit-hint">Scorri per cambiare · tieni premuto per aggiungere uno strato</p>
       <div class="chips" id="slot-chips"></div>
@@ -164,6 +168,11 @@
   </defs>
 </svg>
 
+<script type="module">
+import * as THREE from './vendor/three.module.js';
+window.THREE = THREE; window.dispatchEvent(new Event('three-ready'));
+import('./vendor/gradio/browser.js').then(m => { window.GradioClient = m; window.dispatchEvent(new Event('gradio-ready')); }).catch(e => console.warn('AI client non disponibile', e));
+</script>
 <script>
 /*__JS__*/
 </script>
