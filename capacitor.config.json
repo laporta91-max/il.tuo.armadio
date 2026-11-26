@@ -8,6 +8,6 @@
     "backgroundColor": "#ffffff"
   },
   "plugins": {
-    "CapacitorHttp": { "enabled": true }
+    "CapacitorHttp": { "enabled": false }
   }
 }
