@@ -17,20 +17,76 @@ function pickFromGallery() {
 }
 
 /* ----- Fotocamera nell'app ----- */
+// Tasti fisici: volume, telecomandi Bluetooth, tasto fotocamera, (S Pen se invia un tasto)
+const HwKeys = (() => {
+  let handler = null, sub = null;
+  const PP = () => Plug('HwKeys');
+  const fire = k => { if (handler) handler(k); };
+  window.__hwKey = fire;
+  document.addEventListener('keydown', e => {
+    if (!handler) return;
+    if (['Enter', ' ', 'AudioVolumeUp', 'AudioVolumeDown', 'VolumeUp', 'VolumeDown', 'MediaPlayPause', 'Camera', 'PageDown', 'PageUp'].includes(e.key)) { e.preventDefault(); fire(e.key); }
+  });
+  return {
+    async on(fn) {
+      handler = fn;
+      try { const P = PP(); if (P) { await P.capture({ on: true }); if (!sub) sub = await P.addListener('key', ev => fire(ev.key)); } } catch (e) { console.warn('HwKeys', e); }
+    },
+    async off() { handler = null; try { const P = PP(); if (P) await P.capture({ on: false }); } catch (e) { } }
+  };
+})();
+let audioCtx = null;
+function beep(freq = 880, ms = 120) {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.frequency.value = freq; o.connect(g); g.connect(audioCtx.destination);
+    g.gain.setValueAtTime(0.25, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + ms / 1000);
+    o.start(); o.stop(audioCtx.currentTime + ms / 1000);
+  } catch (e) { }
+}
+const BODY_GUIDE = `<svg viewBox="0 0 200 400" preserveAspectRatio="xMidYMid meet"><g fill="none" stroke="rgba(255,255,255,.85)" stroke-width="2.4" stroke-dasharray="7 5" stroke-linejoin="round" stroke-linecap="round">
+<ellipse cx="100" cy="38" rx="20" ry="25"/>
+<path d="M88 62 L86 74 Q60 78 52 92 L44 160 L40 214 M112 62 L114 74 Q140 78 148 92 L156 160 L160 214"/>
+<path d="M62 100 L64 190 L60 228 L70 300 L68 370 M138 100 L136 190 L140 228 L130 300 L132 370"/>
+<path d="M100 236 L92 300 L90 370 M100 236 L108 300 L110 370"/>
+<path d="M58 382 L96 382 M104 382 L142 382" stroke-dasharray="3 4"/></g></svg>`;
+
 async function openCamera({ facing = 'environment', onShot, guide = 'frame' }) {
-  let stream = null, cur = facing;
+  let stream = null, cur = facing, counting = null;
+  const body = guide === 'body';
+  let delay = body ? (S.profile.camTimer ?? 10) : (S.profile.camTimerItem ?? 0);
   const video = h('video', { autoplay: true, playsinline: true, muted: true });
-  const msg = h('div', { class: 'cam-msg' }, 'Inquadra il capo dentro la cornice');
-  const el = h('div', { class: 'ov cam' }, video, guide === 'frame' ? h('div', { class: 'frame' }) : null, msg,
+  const msg = h('div', { class: 'cam-msg' }, body ? 'Mettiti dentro la sagoma: tutto il corpo, piedi sulla linea' : 'Inquadra il capo dentro la cornice');
+  const count = h('div', { class: 'cam-count hidden' });
+  const timerBtns = h('div', { class: 'cam-timer' }, ...[0, 3, 10].map(t => h('button', { class: t === delay ? 'on' : '', onclick: e => { delay = t; $$('button', timerBtns).forEach(b => b.classList.toggle('on', b === e.currentTarget)); if (body) S.profile.camTimer = t; else S.profile.camTimerItem = t; saveProfile(); } }, t ? `⏱ ${t} s` : 'No timer')));
+  const hint = h('div', { class: 'cam-hint' }, 'Scatta anche con i tasti volume o un telecomando Bluetooth');
+  const shutter = h('button', { class: 'shutter', 'aria-label': 'Scatta', onclick: () => trigger() });
+  const el = h('div', { class: 'ov cam' }, video,
+    body ? h('div', { class: 'body-guide', html: BODY_GUIDE }) : (guide === 'frame' ? h('div', { class: 'frame' }) : null),
+    msg, count,
     h('button', { class: 'rb closeb', 'aria-label': 'Chiudi', onclick: () => ov.close() }, icon('i-x')),
-    h('div', { class: 'bar' },
+    h('div', { class: 'bar' }, h('div', { class: 'bar-top' }, timerBtns, hint), h('div', { class: 'bar-row' },
       h('button', { class: 'rb', 'aria-label': 'Galleria', onclick: () => { ov.close(); pickFromGallery(); } }, icon('i-image')),
-      h('button', { class: 'shutter', 'aria-label': 'Scatta', onclick: shoot }),
-      h('button', { class: 'rb', 'aria-label': 'Cambia fotocamera', onclick: () => { cur = cur === 'environment' ? 'user' : 'environment'; start(); } }, icon('i-flip'))));
-  const stop = () => { if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; };
+      shutter,
+      h('button', { class: 'rb', 'aria-label': 'Cambia fotocamera', onclick: () => { cur = cur === 'environment' ? 'user' : 'environment'; start(); } }, icon('i-flip')))));
+  const stop = () => { if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; cancelCount(); HwKeys.off(); };
   const ov = openOverlay(el, stop);
+  HwKeys.on(() => trigger());
+  function cancelCount() { if (counting) { clearInterval(counting); counting = null; count.classList.add('hidden'); shutter.classList.remove('counting'); } }
+  function trigger() {
+    if (counting) { cancelCount(); toast('Autoscatto annullato'); return; }
+    if (!delay) return shoot();
+    let n = delay; count.textContent = n; count.classList.remove('hidden'); shutter.classList.add('counting'); beep(660);
+    counting = setInterval(() => {
+      n--;
+      if (n <= 0) { cancelCount(); shoot(); return; }
+      count.textContent = n; count.classList.remove('pop'); void count.offsetWidth; count.classList.add('pop');
+      beep(n <= 3 ? 990 : 660, n <= 3 ? 150 : 90);
+    }, 1000);
+  }
   async function start() {
-    stop();
+    if (stream) stream.getTracks().forEach(t => t.stop());
     try {
       stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: cur, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
       video.srcObject = stream; video.style.transform = cur === 'user' ? 'scaleX(-1)' : '';
@@ -43,6 +99,7 @@ async function openCamera({ facing = 'environment', onShot, guide = 'frame' }) {
   }
   async function shoot() {
     if (!video.videoWidth) return;
+    beep(1320, 200);
     el.append(h('div', { class: 'flash' }));
     const c = document.createElement('canvas'); c.width = video.videoWidth; c.height = video.videoHeight;
     const x = c.getContext('2d'); if (cur === 'user') { x.translate(c.width, 0); x.scale(-1, 1); } x.drawImage(video, 0, 0);
