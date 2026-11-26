@@ -26,9 +26,22 @@ function h(tag, attrs = {}, ...kids) {
 const icon = id => { const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.innerHTML = `<use href="#${id}"/>`; return s; };
 
 /* ===== Capacitor ===== */
-const Cap = window.Capacitor;
+// capacitorExports = libreria Capacitor inclusa in index.html (crea i collegamenti ai plugin nativi)
+const CX = window.capacitorExports || null;
+const Cap = (CX && CX.Capacitor) || window.Capacitor;
 const isNative = !!(Cap && Cap.isNativePlatform && Cap.isNativePlatform());
-const Plug = name => (Cap && Cap.Plugins && Cap.Plugins[name]) || null;
+const plugCache = {};
+function Plug(name) {
+  if (!isNative) return null;
+  if (!(name in plugCache)) {
+    try {
+      plugCache[name] = name === 'CapacitorHttp' && CX && CX.CapacitorHttp ? CX.CapacitorHttp
+        : (CX && CX.registerPlugin) ? CX.registerPlugin(name)
+        : (Cap.Plugins && Cap.Plugins[name]) || null;
+    } catch (e) { plugCache[name] = null; }
+  }
+  return plugCache[name];
+}
 
 // GET via HTTP nativo (senza CORS) quando possibile
 async function httpGet(url, { type = 'text', headers = {} } = {}) {
