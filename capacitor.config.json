@@ -1,0 +1,13 @@
+{
+  "appId": "app.armadio.guardaroba",
+  "appName": "Il tuo armadio",
+  "webDir": "www",
+  "backgroundColor": "#ffffff",
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#ffffff"
+  },
+  "plugins": {
+    "CapacitorHttp": { "enabled": true }
+  }
+}
